@@ -1,0 +1,100 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { io } from "socket.io-client";
+import { useSearchParams } from "next/navigation";
+
+export default function Chat() {
+  const params = useSearchParams();
+  const name = params.get("name");
+
+  const [socket, setSocket] = useState(null); // ✅ store socket
+  const [roomId, setRoomId] = useState(null);
+  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [status, setStatus] = useState("Connecting...");
+
+  useEffect(() => {
+    const newSocket = io("http://localhost:3001");
+    setSocket(newSocket);
+
+    newSocket.on("connect", () => {
+      console.log("Connected:", newSocket.id);
+    });
+
+    newSocket.emit("join", name);
+
+    newSocket.on("waiting", () => {
+      setStatus("Waiting for partner...");
+    });
+
+    newSocket.on("matched", (data) => {
+      setRoomId(data.roomId);
+      setStatus("Connected!");
+    });
+
+    newSocket.on("receiveMessage", (data) => {
+      setMessages((prev) => [...prev, data]);
+    });
+
+    return () => newSocket.disconnect();
+  }, [name]);
+
+  const sendMessage = () => {
+    if (!message || !roomId || !socket) return;
+
+    socket.emit("sendMessage", { roomId, message ,  senderId: socket.id });
+
+    setMessages((prev) => [...prev, { message,   senderId: socket.id   }]);
+    setMessage("");
+  };
+
+ return (
+  <div className="h-screen flex flex-col max-w-md mx-auto border sm:w-screen h-dvh ">
+
+    {/* Header */}
+    <div className="p-3 text-center ">
+      {status}
+    </div>
+
+    {/* Messages */}
+    <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-2">
+      {messages.map((msg, i) => {
+        const isMe = msg.senderId === socket?.id;
+
+        return (
+          <div
+            key={i}
+            className={`flex w-full ${isMe ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`px-3 py-2 rounded-xl max-w-[75%] text-sm ${
+                isMe
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-200 text-purple"
+              }`}
+            >
+              {msg.message}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+
+    {/* Input */}
+    <div className="p-2 border-t flex gap-2">
+      <input
+        className="flex-1 border p-2 rounded text-sm"
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+      />
+
+      <button
+        onClick={sendMessage}
+        className="bg-green-500 text-white px-4 rounded"
+      >
+        Send
+      </button>
+    </div>
+  </div>
+);}
