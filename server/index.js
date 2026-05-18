@@ -7,7 +7,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "*", // allows all origins
+    origin: "*",
     methods: ["GET", "POST"],
   },
 });
@@ -47,12 +47,12 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("Disconnected:", socket.id);
-
     if (waitingUser && waitingUser.id === socket.id) {
       waitingUser = null;
     }
   });
-});  
+});
+
 const PORT = process.env.PORT || 3001;
 
 server.listen(PORT, () => {

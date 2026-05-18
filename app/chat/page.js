@@ -1,4 +1,3 @@
-// app/chat/page.js
 "use client";
 
 import { Suspense } from "react";
@@ -21,12 +20,23 @@ function ChatContent() {
   useEffect(() => {
     if (!name) return;
 
-    const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL ||"http://localhost:3001");
+    const SOCKET_URL =
+      process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
+
+    const newSocket = io(SOCKET_URL, {
+      transports: ["websocket", "polling"], // try websocket first, fallback to polling
+    });
+
     setSocket(newSocket);
 
     newSocket.on("connect", () => {
       console.log("Connected:", newSocket.id);
       newSocket.emit("join", name);
+    });
+
+    newSocket.on("connect_error", (err) => {
+      console.error("Connection error:", err.message);
+      setStatus("Connection failed. Retrying...");
     });
 
     newSocket.on("waiting", () => {
@@ -82,22 +92,26 @@ function ChatContent() {
       <div className="flex h-screen items-center justify-center bg-slate-950 px-4 text-center text-slate-400">
         <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 shadow-xl">
           <p className="font-semibold text-red-400">Access Denied</p>
-          <p className="mt-1 text-sm text-slate-500">No name parameter provided in the URL.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            No name parameter provided in the URL.
+          </p>
         </div>
       </div>
     );
   }
 
   const getStatusColor = () => {
-    if (status === "Connected!") return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-    if (status === "Waiting for partner...") return "bg-amber-500/10 text-amber-400 border-amber-500/20";
+    if (status === "Connected!")
+      return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+    if (status === "Waiting for partner...")
+      return "bg-amber-500/10 text-amber-400 border-amber-500/20";
     return "bg-slate-500/10 text-slate-400 border-slate-800";
   };
 
   return (
     <div className="flex h-screen w-screen flex-col items-center justify-center bg-slate-950 p-0 sm:p-4 text-slate-100 antialiased overscroll-none selection:bg-indigo-500/30">
       <div className="flex h-full w-full max-w-md flex-col border-0 border-slate-800 bg-slate-900 shadow-2xl sm:h-[85vh] sm:rounded-2xl sm:border overflow-hidden">
-        
+
         <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/80 px-4 py-3.5">
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-base font-bold tracking-tight bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
@@ -167,7 +181,7 @@ function ChatContent() {
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Type a message..."
-              className="flex-1 rounded-xl bg-slate-950 border border-slate-800 px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 native-input-fix"
+              className="flex-1 rounded-xl bg-slate-950 border border-slate-800 px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
             <button
               onClick={sendMessage}
@@ -185,11 +199,13 @@ function ChatContent() {
 
 export default function Chat() {
   return (
-    <Suspense fallback={
-      <div className="flex h-screen items-center justify-center bg-slate-950 text-slate-400">
-        Loading...
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center bg-slate-950 text-slate-400">
+          Loading...
+        </div>
+      }
+    >
       <ChatContent />
     </Suspense>
   );
