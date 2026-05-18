@@ -19,7 +19,7 @@ export default function Chat() {
   useEffect(() => {
     if (!name) return;
 
-    const newSocket = io("http://localhost:3001");
+const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL);
     setSocket(newSocket);
 
     newSocket.on("connect", () => {

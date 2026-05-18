@@ -53,7 +53,7 @@ io.on("connection", (socket) => {
     }
   });
 });
-
+const PORT = process.env.PORT || 5000;
 server.listen(3001, () => {
   console.log("Socket server running on http://localhost:3001");
 });
