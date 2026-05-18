@@ -4,10 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "server": "node server/index.js",
-    "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
-    "build": "next build",
-    "start": "next start"
+    "server": "node server/index.js"
+  
   },
   "dependencies": {
     "@zegocloud/zego-uikit-prebuilt": "^2.17.3",
@@ -26,3 +24,5 @@
     "tailwindcss": "^4"
   }
 }
+   
+  
