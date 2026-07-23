@@ -37,7 +37,23 @@ io.on("connection", (socket) => {
       socket.emit("waiting");
     }
   });
+   // Add alongside your existing socket.on("sendMessage", ...) etc.
 
+socket.on("call-offer", ({ roomId, offer }) => {
+  socket.to(roomId).emit("call-offer", { offer, callerId: socket.id });
+});
+
+socket.on("call-answer", ({ roomId, answer }) => {
+  socket.to(roomId).emit("call-answer", { answer });
+});
+
+socket.on("ice-candidate", ({ roomId, candidate }) => {
+  socket.to(roomId).emit("ice-candidate", { candidate });
+});
+
+socket.on("call-end", ({ roomId }) => {
+  socket.to(roomId).emit("call-end");
+});
   socket.on("sendMessage", ({ roomId, message, senderId }) => {
     socket.to(roomId).emit("receiveMessage", {
       message,
