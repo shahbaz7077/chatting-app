@@ -16,6 +16,8 @@ function ChatContent() {
   const params = useSearchParams();
   const name = params.get("name");
 
+  const [onlineCount, setOnlineCount] = useState(0);
+  const [partnerLeft, setPartnerLeft] = useState(false);
   const [socket, setSocket] = useState(null);
   const [roomId, setRoomId] = useState(null);
   const [status, setStatus] = useState("Connecting...");
@@ -30,6 +32,13 @@ function ChatContent() {
   const roomIdRef = useRef(null); // avoids stale closures in socket handlers
 
   const bottomRef = useRef(null);
+
+  const searchAgain = () => {
+    if (!socket) return;
+    setPartnerLeft(false);
+    setStatus("Waiting for partner...");
+    socket.emit("join", name);
+  };
 
   useEffect(() => {
     roomIdRef.current = roomId;
@@ -64,6 +73,21 @@ function ChatContent() {
     newSocket.on("matched", (data) => {
       setRoomId(data.roomId);
       setStatus("Connected!");
+      setPartnerLeft(false);
+    });
+
+    newSocket.on("onlineCount", (count) => {
+      setOnlineCount(count);
+    });
+
+    // Partner skipped/disconnected: stop the call, clear the room,
+    // and WAIT for the user to press "Search Again" — no auto re-join.
+    newSocket.on("partner-left", () => {
+      endCall(false);
+      setPartnerLeft(true);
+      setMessages([]);
+      setRoomId(null);
+      setStatus("Partner disconnected");
     });
 
     newSocket.on("receiveMessage", (data) => {
@@ -75,7 +99,6 @@ function ChatContent() {
       setCallStatus("incoming");
       pcRef.current = createPeerConnection(newSocket);
       await pcRef.current.setRemoteDescription(new RTCSessionDescription(offer));
-      window.__pendingOffer = true; // wait for user to accept
     });
 
     newSocket.on("call-answer", async ({ answer }) => {
@@ -210,11 +233,17 @@ function ChatContent() {
     if (e.key === "Enter") sendMessage();
   };
 
+  // The user who actively clicks Skip searches again immediately.
+  // The OTHER person gets "partner-left" and must press Search Again themselves.
   const handleSkip = () => {
     if (!socket) return;
     endCall(true);
+    if (roomId) {
+      socket.emit("skip", { roomId });
+    }
     setRoomId(null);
     setMessages([]);
+    setPartnerLeft(false);
     setStatus("Waiting for partner...");
     socket.emit("join", name);
   };
@@ -237,6 +266,8 @@ function ChatContent() {
       return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
     if (status === "Waiting for partner...")
       return "bg-amber-500/10 text-amber-400 border-amber-500/20";
+    if (status === "Partner disconnected")
+      return "bg-red-500/10 text-red-400 border-red-500/20";
     return "bg-slate-500/10 text-slate-400 border-slate-800";
   };
 
@@ -250,7 +281,7 @@ function ChatContent() {
               Anonymous Room
             </h1>
             <p className="truncate text-[10px] font-mono text-slate-500">
-              {roomId ? `ID: ${roomId}` : `User: ${name}`}
+              {roomId ? `ID: ${roomId}` : `User: ${name}`} · 🟢 {onlineCount} online
             </p>
           </div>
 
@@ -311,12 +342,6 @@ function ChatContent() {
           </div>
         )}
 
-        {callStatus === "calling" && (
-          <div className="bg-amber-950/60 border-b border-amber-800 px-4 py-2 text-center text-xs text-amber-300 font-medium animate-pulse">
-            Calling... waiting for answer
-          </div>
-        )}
-
         {callStatus === "connected" && (
           <div className="bg-emerald-950/60 border-b border-emerald-800 px-4 py-2 text-center text-xs text-emerald-300 font-medium">
             🔊 Call connected
@@ -324,7 +349,19 @@ function ChatContent() {
         )}
 
         <div className="flex-1 overflow-y-auto bg-slate-950 p-4 space-y-3 scrollbar-none">
-          {!roomId ? (
+          {partnerLeft ? (
+            <div className="flex h-full flex-col items-center justify-center text-center p-6 space-y-4">
+              <p className="text-sm text-red-300 font-medium">
+                Stranger has disconnected.
+              </p>
+              <button
+                onClick={searchAgain}
+                className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 active:scale-95 transition"
+              >
+                🔍 Search Again
+              </button>
+            </div>
+          ) : !roomId ? (
             <div className="flex h-full flex-col items-center justify-center text-center p-6 space-y-4">
               <div className="rounded-full bg-indigo-500/10 p-4 text-indigo-400 animate-pulse">
                 <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">

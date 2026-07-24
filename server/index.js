@@ -13,9 +13,13 @@ const io = new Server(server, {
 });
 
 let waitingUser = null;
+let onlineCount = 0;
 
 io.on("connection", (socket) => {
   console.log("Connected:", socket.id);
+
+  onlineCount++;
+  io.emit("onlineCount", onlineCount);
 
   socket.on("join", (name) => {
     socket.userName = name;
@@ -37,23 +41,29 @@ io.on("connection", (socket) => {
       socket.emit("waiting");
     }
   });
-   // Add alongside your existing socket.on("sendMessage", ...) etc.
 
-socket.on("call-offer", ({ roomId, offer }) => {
-  socket.to(roomId).emit("call-offer", { offer, callerId: socket.id });
-});
+  // --- Skip / end chat ---
+  socket.on("skip", ({ roomId }) => {
+    socket.to(roomId).emit("partner-left");
+    socket.leave(roomId);
+  });
 
-socket.on("call-answer", ({ roomId, answer }) => {
-  socket.to(roomId).emit("call-answer", { answer });
-});
+  socket.on("call-offer", ({ roomId, offer }) => {
+    socket.to(roomId).emit("call-offer", { offer, callerId: socket.id });
+  });
 
-socket.on("ice-candidate", ({ roomId, candidate }) => {
-  socket.to(roomId).emit("ice-candidate", { candidate });
-});
+  socket.on("call-answer", ({ roomId, answer }) => {
+    socket.to(roomId).emit("call-answer", { answer });
+  });
 
-socket.on("call-end", ({ roomId }) => {
-  socket.to(roomId).emit("call-end");
-});
+  socket.on("ice-candidate", ({ roomId, candidate }) => {
+    socket.to(roomId).emit("ice-candidate", { candidate });
+  });
+
+  socket.on("call-end", ({ roomId }) => {
+    socket.to(roomId).emit("call-end");
+  });
+
   socket.on("sendMessage", ({ roomId, message, senderId }) => {
     socket.to(roomId).emit("receiveMessage", {
       message,
@@ -66,6 +76,9 @@ socket.on("call-end", ({ roomId }) => {
     if (waitingUser && waitingUser.id === socket.id) {
       waitingUser = null;
     }
+
+    onlineCount--;
+    io.emit("onlineCount", onlineCount);
   });
 });
 
