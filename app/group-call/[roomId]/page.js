@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { io } from "socket.io-client";
 
-const SOCKET_SERVER_URL = "https://your-render-backend.onrender.com"; // your deployed Socket.IO server
+// TODO: replace this with your ACTUAL deployed Render URL, e.g.
+// "https://stranger-chat-backend.onrender.com"
+const SOCKET_SERVER_URL = "https://PASTE-YOUR-REAL-RENDER-URL-HERE.onrender.com";
 
 const ICE_SERVERS = {
   iceServers: [
@@ -20,6 +22,7 @@ export default function GroupCallPage() {
 
   const [name, setName] = useState("");
   const [joined, setJoined] = useState(false);
+  const [joining, setJoining] = useState(false);
   const [remoteStreams, setRemoteStreams] = useState({}); // { socketId: MediaStream }
   const [participants, setParticipants] = useState({}); // { socketId: name }
 
@@ -55,7 +58,7 @@ export default function GroupCallPage() {
     // Send ICE candidates as they're discovered
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        socketRef.current.emit("ice-candidate", {
+        socketRef.current.emit("group-ice-candidate", {
           to: socketId,
           candidate: event.candidate,
         });
@@ -97,73 +100,81 @@ export default function GroupCallPage() {
   };
 
   const joinCall = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || joining) return;
+    setJoining(true);
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true,
-    });
-    localStreamRef.current = stream;
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = stream;
-    }
-
-    const socket = io(SOCKET_SERVER_URL);
-    socketRef.current = socket;
-
-    socket.on("connect", () => {
-      socket.emit("join-group-room", { roomId, name });
-    });
-
-    // Existing users already in the room -> we create offers to them
-    socket.on("existing-users", async (users) => {
-      for (const user of users) {
-        const pc = createPeerConnection(user.socketId, user.name);
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        socket.emit("offer", { to: user.socketId, offer, name });
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+      localStreamRef.current = stream;
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
       }
-    });
 
-    // Someone new joined -> just wait, they will send us an offer
-    socket.on("user-joined", ({ socketId, name: newName }) => {
-      setParticipants((prev) => ({ ...prev, [socketId]: newName }));
-    });
+      const socket = io(SOCKET_SERVER_URL);
+      socketRef.current = socket;
 
-    // We received an offer -> answer it
-    socket.on("offer", async ({ from, offer, name: fromName }) => {
-      const pc = createPeerConnection(from, fromName);
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit("answer", { to: from, answer });
-    });
+      socket.on("connect", () => {
+        socket.emit("join-group-room", { roomId, name });
+      });
 
-    // We received an answer to our offer
-    socket.on("answer", async ({ from, answer }) => {
-      const pc = peerConnectionsRef.current[from];
-      if (pc) {
-        await pc.setRemoteDescription(new RTCSessionDescription(answer));
-      }
-    });
-
-    // Remote ICE candidate arrived
-    socket.on("ice-candidate", async ({ from, candidate }) => {
-      const pc = peerConnectionsRef.current[from];
-      if (pc) {
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(candidate));
-        } catch (err) {
-          console.error("Error adding ICE candidate", err);
+      // Existing users already in the room -> we create offers to them
+      socket.on("existing-users", async (users) => {
+        for (const user of users) {
+          const pc = createPeerConnection(user.socketId, user.name);
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          socket.emit("group-offer", { to: user.socketId, offer, name });
         }
-      }
-    });
+      });
 
-    socket.on("user-left", ({ socketId }) => {
-      removePeer(socketId);
-    });
+      // Someone new joined -> just wait, they will send us an offer
+      socket.on("user-joined", ({ socketId, name: newName }) => {
+        setParticipants((prev) => ({ ...prev, [socketId]: newName }));
+      });
 
-    setJoined(true);
+      // We received an offer -> answer it
+      socket.on("group-offer", async ({ from, offer, name: fromName }) => {
+        const pc = createPeerConnection(from, fromName);
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.emit("group-answer", { to: from, answer });
+      });
+
+      // We received an answer to our offer
+      socket.on("group-answer", async ({ from, answer }) => {
+        const pc = peerConnectionsRef.current[from];
+        if (pc) {
+          await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        }
+      });
+
+      // Remote ICE candidate arrived
+      socket.on("group-ice-candidate", async ({ from, candidate }) => {
+        const pc = peerConnectionsRef.current[from];
+        if (pc) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (err) {
+            console.error("Error adding ICE candidate", err);
+          }
+        }
+      });
+
+      socket.on("user-left", ({ socketId }) => {
+        removePeer(socketId);
+      });
+
+      setJoined(true);
+    } catch (err) {
+      console.error("getUserMedia failed:", err.name, err.message);
+      alert(`Media error: ${err.name} — ${err.message}`);
+    } finally {
+      setJoining(false);
+    }
   };
 
   const leaveCall = () => {
@@ -195,10 +206,11 @@ export default function GroupCallPage() {
             onChange={(e) => setName(e.target.value)}
           />
           <button
-            className="px-4 py-2 rounded bg-lime-500 text-black font-medium"
+            className="px-4 py-2 rounded bg-lime-500 text-black font-medium disabled:opacity-50"
             onClick={joinCall}
+            disabled={joining}
           >
-            Join Call
+            {joining ? "Joining..." : "Join Call"}
           </button>
         </div>
       </div>
