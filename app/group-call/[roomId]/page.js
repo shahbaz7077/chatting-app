@@ -6,7 +6,7 @@ import { io } from "socket.io-client";
 
 // TODO: replace this with your ACTUAL deployed Render URL, e.g.
 // "https://stranger-chat-backend.onrender.com"
-const SOCKET_SERVER_URL = "https://PASTE-YOUR-REAL-RENDER-URL-HERE.onrender.com";
+const SOCKET_SERVER_URL = "https://chattingapp-xzjx.onrender.com";
 
 const ICE_SERVERS = {
   iceServers: [
@@ -16,7 +16,7 @@ const ICE_SERVERS = {
   ],
 };
 
-export default function GroupCallPage() {
+export default function GroupCallRoomPage() {
   const { roomId } = useParams();
   const router = useRouter();
 
@@ -191,7 +191,7 @@ export default function GroupCallPage() {
 
   const handleLeaveClick = () => {
     leaveCall();
-    router.push("/");
+    router.push("/group-call");
   };
 
   if (!joined) {
@@ -204,6 +204,7 @@ export default function GroupCallPage() {
             placeholder="Enter your name"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && joinCall()}
           />
           <button
             className="px-4 py-2 rounded bg-lime-500 text-black font-medium disabled:opacity-50"
