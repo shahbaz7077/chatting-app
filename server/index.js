@@ -15,6 +15,9 @@ const io = new Server(server, {
 let waitingUser = null;
 let onlineCount = 0;
 
+// ===== ADDED: storage for group call rooms =====
+const groupCallRooms = {}; // { roomId: [ { socketId, name }, ... ] }
+
 io.on("connection", (socket) => {
   console.log("Connected:", socket.id);
 
@@ -71,16 +74,71 @@ io.on("connection", (socket) => {
     });
   });
 
+  // ===== ADDED: group call handlers (renamed to avoid clashing with the 1-on-1 handlers above) =====
+
+  socket.on("join-group-room", ({ roomId, name }) => {
+    socket.join(roomId);
+    socket.data.groupRoomId = roomId;
+    socket.data.groupName = name;
+
+    if (!groupCallRooms[roomId]) {
+      groupCallRooms[roomId] = [];
+    }
+
+    const existingUsers = groupCallRooms[roomId];
+    socket.emit("existing-users", existingUsers);
+
+    groupCallRooms[roomId].push({ socketId: socket.id, name });
+    socket.to(roomId).emit("user-joined", { socketId: socket.id, name });
+  });
+
+  socket.on("group-offer", ({ to, offer, name }) => {
+    io.to(to).emit("group-offer", { from: socket.id, offer, name });
+  });
+
+  socket.on("group-answer", ({ to, answer }) => {
+    io.to(to).emit("group-answer", { from: socket.id, answer });
+  });
+
+  socket.on("group-ice-candidate", ({ to, candidate }) => {
+    io.to(to).emit("group-ice-candidate", { from: socket.id, candidate });
+  });
+
+  socket.on("leave-group-room", () => {
+    handleGroupLeave(socket);
+  });
+
+  // ===== END ADDED SECTION =====
+
   socket.on("disconnect", () => {
     console.log("Disconnected:", socket.id);
     if (waitingUser && waitingUser.id === socket.id) {
       waitingUser = null;
     }
 
+    // ===== ADDED: clean up group call room on disconnect =====
+    handleGroupLeave(socket);
+
     onlineCount--;
     io.emit("onlineCount", onlineCount);
   });
 });
+
+// ===== ADDED: helper function, outside io.on =====
+function handleGroupLeave(socket) {
+  const roomId = socket.data.groupRoomId;
+  if (!roomId || !groupCallRooms[roomId]) return;
+
+  groupCallRooms[roomId] = groupCallRooms[roomId].filter(
+    (user) => user.socketId !== socket.id
+  );
+
+  socket.to(roomId).emit("user-left", { socketId: socket.id });
+
+  if (groupCallRooms[roomId].length === 0) {
+    delete groupCallRooms[roomId];
+  }
+}
 
 const PORT = process.env.PORT || 3001;
 

@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+
+
 export default function Home() {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -31,8 +33,9 @@ export default function Home() {
   };
 
   const voiceHandle = () => {
-    if (!validate()) return;
-    router.push(`/Room1?name=${encodeURIComponent(name.trim())}`);
+      if (!validate()) return;
+  const roomId = Math.random().toString(36).substring(2, 8);
+  router.push(`/group-call/${roomId}?name=${encodeURIComponent(name.trim())}`);
   };
 
   return (
