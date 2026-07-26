@@ -23,6 +23,7 @@ export default function GroupCallRoomPage() {
   const [name, setName] = useState("");
   const [joined, setJoined] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [remoteStreams, setRemoteStreams] = useState({}); // { socketId: MediaStream }
   const [participants, setParticipants] = useState({}); // { socketId: name }
 
@@ -31,6 +32,13 @@ export default function GroupCallRoomPage() {
   const localVideoRef = useRef(null);
   const peerConnectionsRef = useRef({}); // { socketId: RTCPeerConnection }
 
+  const copyRoomLink = () => {
+    const link = `${window.location.origin}/group-call/${roomId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
   useEffect(() => {
     return () => {
       // cleanup on unmount
@@ -199,6 +207,12 @@ export default function GroupCallRoomPage() {
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <div className="flex flex-col gap-4 w-80">
           <h1 className="text-xl font-semibold">Join Room: {roomId}</h1>
+           <button
+            onClick={copyRoomLink}
+            className="px-4 py-2 rounded bg-neutral-800 border border-neutral-700 text-sm hover:bg-neutral-700"
+          >
+            {copied ? "✓ Link Copied!" : "📋 Copy Room Link to Share"}
+          </button>
           <input
             className="px-4 py-2 rounded bg-neutral-800 border border-neutral-700"
             placeholder="Enter your name"
