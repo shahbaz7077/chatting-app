@@ -5,11 +5,28 @@ import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { useSearchParams } from "next/navigation";
 
-const ICE_SERVERS = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-  ],
+// TODO: replace with your real Metered app name + API key from metered.ca dashboard
+const METERED_APP_NAME = "YOUR_APP_NAME";
+const METERED_API_KEY = "YOUR_API_KEY";
+
+const FALLBACK_ICE_SERVERS = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+];
+
+// Fetches fresh TURN credentials from Metered; falls back to STUN-only if it fails
+const getIceServers = async () => {
+  try {
+    const response = await fetch(
+      `https://${METERED_APP_NAME}.metered.live/api/v1/turn/credentials?apiKey=${METERED_API_KEY}`
+    );
+    if (!response.ok) throw new Error("Failed to fetch TURN credentials");
+    const iceServers = await response.json();
+    return iceServers;
+  } catch (err) {
+    console.error("TURN fetch failed, falling back to STUN only:", err);
+    return FALLBACK_ICE_SERVERS;
+  }
 };
 
 function ChatContent() {
@@ -97,7 +114,7 @@ function ChatContent() {
     // --- Call signaling ---
     newSocket.on("call-offer", async ({ offer }) => {
       setCallStatus("incoming");
-      pcRef.current = createPeerConnection(newSocket);
+      pcRef.current = await createPeerConnection(newSocket);
       await pcRef.current.setRemoteDescription(new RTCSessionDescription(offer));
     });
 
@@ -136,8 +153,10 @@ function ChatContent() {
     endCall(false);
   }, [roomId]);
 
-  const createPeerConnection = (activeSocket) => {
-    const pc = new RTCPeerConnection(ICE_SERVERS);
+  // NOW ASYNC: fetches fresh TURN credentials before creating the connection
+  const createPeerConnection = async (activeSocket) => {
+    const iceServers = await getIceServers();
+    const pc = new RTCPeerConnection({ iceServers });
 
     pc.onicecandidate = (event) => {
       if (event.candidate && roomIdRef.current) {
@@ -163,7 +182,7 @@ function ChatContent() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
 
-      pcRef.current = createPeerConnection(socket);
+      pcRef.current = await createPeerConnection(socket);
       stream.getTracks().forEach((track) => pcRef.current.addTrack(track, stream));
 
       const offer = await pcRef.current.createOffer();
