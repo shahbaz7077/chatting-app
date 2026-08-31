@@ -4,9 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { io } from "socket.io-client";
 
-// TODO: replace this with your ACTUAL deployed Render URL, e.g.
-// "https://stranger-chat-backend.onrender.com"
-const SOCKET_SERVER_URL = "https://chattingapp-xzjx.onrender.com";
+const SOCKET_SERVER_URL = "https://chatting-app-node-tm16.onrender.com";
 
 const ICE_SERVERS = {
   iceServers: [
@@ -34,11 +32,42 @@ export default function GroupCallRoomPage() {
 
   const copyRoomLink = () => {
     const link = `${window.location.origin}/group-call/${roomId}`;
-    navigator.clipboard.writeText(link).then(() => {
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard
+        .writeText(link)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch((err) => {
+          console.error("Clipboard write failed:", err);
+          fallbackCopy(link);
+        });
+    } else {
+      fallbackCopy(link);
+    }
+  };
+
+  const fallbackCopy = (text) => {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      document.execCommand("copy");
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    } catch (err) {
+      console.error("Fallback copy failed:", err);
+      alert(`Copy this link manually: ${text}`);
+    }
+    document.body.removeChild(textArea);
   };
+
   useEffect(() => {
     return () => {
       // cleanup on unmount
@@ -46,6 +75,15 @@ export default function GroupCallRoomPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // FIX: attach the local stream to the video element only AFTER it mounts
+  // (the <video> element only exists once `joined` becomes true, so doing
+  // this assignment inside joinCall() ran before the element existed)
+  useEffect(() => {
+    if (joined && localVideoRef.current && localStreamRef.current) {
+      localVideoRef.current.srcObject = localStreamRef.current;
+    }
+  }, [joined]);
 
   const createPeerConnection = (socketId, remoteName) => {
     const pc = new RTCPeerConnection(ICE_SERVERS);
@@ -117,9 +155,8 @@ export default function GroupCallRoomPage() {
         audio: true,
       });
       localStreamRef.current = stream;
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
+      // NOTE: no longer assigning srcObject here — the video element doesn't
+      // exist yet at this point. The useEffect above handles it once it mounts.
 
       const socket = io(SOCKET_SERVER_URL);
       socketRef.current = socket;
@@ -207,7 +244,7 @@ export default function GroupCallRoomPage() {
       <div className="min-h-screen flex items-center justify-center bg-black text-white">
         <div className="flex flex-col gap-4 w-80">
           <h1 className="text-xl font-semibold">Join Room: {roomId}</h1>
-           <button
+          <button
             onClick={copyRoomLink}
             className="px-4 py-2 rounded bg-neutral-800 border border-neutral-700 text-sm hover:bg-neutral-700"
           >
