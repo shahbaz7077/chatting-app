@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { io } from "socket.io-client";
 
-const SOCKET_SERVER_URL = "https://chatting-app-node-tm16.onrender.com";
+const SOCKET_SERVER_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
 
 const ICE_SERVERS = {
   iceServers: [
