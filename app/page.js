@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-
-
 export default function Home() {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -26,6 +24,7 @@ export default function Home() {
     }
     return true;
   };
+  
 
   const startChat = () => {
     if (!validate()) return;
@@ -33,10 +32,16 @@ export default function Home() {
   };
 
   const voiceHandle = () => {
-      if (!validate()) return;
-  const roomId = Math.random().toString(36).substring(2, 8);
-  router.push(`/group-call/${roomId}?name=${encodeURIComponent(name.trim())}`);
+    if (!validate()) return;
+    const roomId = Math.random().toString(36).substring(2, 8);
+    router.push(`/group-call/${roomId}?name=${encodeURIComponent(name.trim())}`);
   };
+
+  
+  const aiChatHandle = () => {
+    router.push("/chat-ai");
+  };
+   
 
   return (
     <main className="w-screen h-dvh flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white relative overflow-hidden">
@@ -58,34 +63,44 @@ export default function Home() {
         </h1>
         <p className="text-white/60 text-sm mb-6">Talk to strangers, instantly.</p>
 
-        <div>
-          <input
-            type="text"
-            placeholder="Enter your name"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              if (error) setError("");
-            }}
-            className={`w-full p-3 rounded-xl border bg-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-pink-500 transition ${
-              shake ? "border-red-500 animate-shake" : "border-white/20"
-            }`}
-          />
-        </div>
+        <input
+          type="text"
+          placeholder="Enter your name"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            if (error) setError("");
+          }}
+          className={`w-full p-3 rounded-xl border bg-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-pink-500 transition ${
+            shake ? "border-red-500 animate-shake" : "border-white/20"
+          }`}
+        />
 
-        <div className="flex gap-3 mt-4">
-          <button
-            onClick={startChat}
-            className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-xl text-base md:text-lg font-bold p-3 transition transform hover:scale-105 shadow-lg"
-          >
-            Find Someone
-          </button>
+        {/* FIX: single flex-col wrapper with consistent gap instead of
+            separate divs with mismatched margins (mt-4 / my-4) that were
+            stacking up and pushing content taller than the viewport */}
+        <div className="flex flex-col gap-3 mt-4">
+          <div className="flex gap-3">
+            <button
+              onClick={startChat}
+              className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-xl text-base md:text-lg font-bold p-3 transition transform hover:scale-105 shadow-lg"
+            >
+              Find Someone
+            </button>
+
+            <button
+              onClick={voiceHandle}
+              className="flex-1 bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600 text-white rounded-xl text-base md:text-lg font-bold p-3 transition transform hover:scale-105 shadow-lg"
+            >
+              GC Call
+            </button>
+          </div>
 
           <button
-            onClick={voiceHandle}
-            className="flex-1 bg-gradient-to-r from-pink-500 to-red-500 hover:from-pink-600 hover:to-red-600 text-white rounded-xl text-base md:text-lg font-bold p-3 transition transform hover:scale-105 shadow-lg"
+            onClick={aiChatHandle}
+            className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl text-base md:text-lg font-bold p-3 transition transform hover:scale-105 shadow-lg"
           >
-            GC Call
+            Chat with AI
           </button>
         </div>
       </div>
