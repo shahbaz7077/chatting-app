@@ -4,6 +4,7 @@ const { Server } = require("socket.io");
 
 const app = express();
 const server = http.createServer(app);
+const cors = require("cors");
 
 const allowedOrigins = [
   "http://localhost:3000",
