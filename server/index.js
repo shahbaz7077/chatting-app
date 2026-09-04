@@ -5,12 +5,21 @@ const { Server } = require("socket.io");
 const app = express();
 const server = http.createServer(app);
 
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://chatting-app-wine-two.vercel.app",
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
   },
-});
+  credentials: true,
+}));
 
 let waitingUser = null;
 let onlineCount = 0;
