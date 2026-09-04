@@ -1,0 +1,37 @@
+[33m9497695[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m fix cors for vercel
+[33m5f6f7c9[m fix production cors
+[33m58a0ab0[m token install
+[33m0d50e11[m try best
+[33me01262f[m jwt token added
+[33me5f2624[m refresh issue resolved
+[33m9e49dc4[m ai chat now available
+[33m7e81d20[m Revise README with project overview and features
+[33m8ab1d11[m Use environment variable for socket server URL
+[33maa59a45[m Change socket server URL and enhance copy link feature
+[33m34ce4d4[m Refactor peer connection setup in ChatContent
+[33m0f730ee[m Refactor peer connection to use async TURN credential fetch
+[33m34c0538[m last work on it
+[33mf0a9d0b[m hahaha
+[33m19910b1[m add group call feature
+[33m38a85ab[m your commit message here
+[33m452fe5c[m first commit
+[33m7098d34[m first commit
+[33m89ac910[m first commit
+[33m3d6cdeb[m possibilly
+[33m99bf9c7[m updated code
+[33m1ce2d89[m 4
+[33m81343f1[m 3
+[33mf75face[m 3
+[33m7f70e76[m second
+[33m96431ee[m back problem
+[33mdd8bdbd[m second
+[33mee08e7f[m one more try
+[33m86d630a[m Fix Zego package
+[33m47f0330[m Update Next.js app
+[33mf0fc700[m Updated code
+[33m5e6b112[m first commit
+[33m45f3fa9[m first commit
+[33maf564b0[m first commit
+[33m68d70cb[m first commit
+[33mce46480[m Initial commit
+[33mf66d106[m Initial commit from Create Next App
