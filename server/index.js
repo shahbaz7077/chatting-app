@@ -1,10 +1,10 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
+const cors = require("cors");
 
 const app = express();
 const server = http.createServer(app);
-const cors = require("cors");
 
 const allowedOrigins = [
   "http://localhost:3000",
@@ -21,6 +21,14 @@ app.use(cors({
   },
   credentials: true,
 }));
+
+// YEH LINE MISSING THI — ADD KI GAYI
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+  },
+});
 
 let waitingUser = null;
 let onlineCount = 0;
@@ -55,7 +63,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // --- Skip / end chat ---
   socket.on("skip", ({ roomId }) => {
     socket.to(roomId).emit("partner-left");
     socket.leave(roomId);
@@ -84,10 +91,6 @@ io.on("connection", (socket) => {
     });
   });
 
-  // --- Rejoin after a browser refresh ---
-  // Socket.IO removes a socket from all rooms automatically on disconnect,
-  // so "the room still has a member in it" is a reliable signal that the
-  // partner is still around and waiting.
   socket.on("rejoin-room", ({ roomId, name }) => {
     socket.userName = name;
 
@@ -98,13 +101,9 @@ io.on("connection", (socket) => {
       socket.emit("rejoined", { roomId });
       socket.to(roomId).emit("partner-reconnected");
     } else {
-      // Partner is gone for good (or room never existed) — client falls
-      // back to a normal fresh match search.
       socket.emit("rejoin-failed");
     }
   });
-
-  // ===== ADDED: group call handlers (renamed to avoid clashing with the 1-on-1 handlers above) =====
 
   socket.on("join-group-room", ({ roomId, name }) => {
     socket.join(roomId);
@@ -138,22 +137,18 @@ io.on("connection", (socket) => {
     handleGroupLeave(socket);
   });
 
-  // ===== END ADDED SECTION =====
-
   socket.on("disconnect", () => {
     console.log("Disconnected:", socket.id);
     if (waitingUser && waitingUser.id === socket.id) {
       waitingUser = null;
     }
 
-    // ADDED: clean up group call room on disconnect 
     handleGroupLeave(socket);
 
     onlineCount--;
     io.emit("onlineCount", onlineCount);
   });
 });
-
 
 function handleGroupLeave(socket) {
   const roomId = socket.data.groupRoomId;
