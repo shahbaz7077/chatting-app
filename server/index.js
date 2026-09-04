@@ -74,6 +74,26 @@ io.on("connection", (socket) => {
     });
   });
 
+  // --- Rejoin after a browser refresh ---
+  // Socket.IO removes a socket from all rooms automatically on disconnect,
+  // so "the room still has a member in it" is a reliable signal that the
+  // partner is still around and waiting.
+  socket.on("rejoin-room", ({ roomId, name }) => {
+    socket.userName = name;
+
+    const room = io.sockets.adapter.rooms.get(roomId);
+
+    if (room && room.size > 0) {
+      socket.join(roomId);
+      socket.emit("rejoined", { roomId });
+      socket.to(roomId).emit("partner-reconnected");
+    } else {
+      // Partner is gone for good (or room never existed) — client falls
+      // back to a normal fresh match search.
+      socket.emit("rejoin-failed");
+    }
+  });
+
   // ===== ADDED: group call handlers (renamed to avoid clashing with the 1-on-1 handlers above) =====
 
   socket.on("join-group-room", ({ roomId, name }) => {
@@ -116,7 +136,7 @@ io.on("connection", (socket) => {
       waitingUser = null;
     }
 
-    // ===== ADDED: clean up group call room on disconnect =====
+    // ADDED: clean up group call room on disconnect 
     handleGroupLeave(socket);
 
     onlineCount--;
@@ -124,7 +144,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// ===== ADDED: helper function, outside io.on =====
+
 function handleGroupLeave(socket) {
   const roomId = socket.data.groupRoomId;
   if (!roomId || !groupCallRooms[roomId]) return;

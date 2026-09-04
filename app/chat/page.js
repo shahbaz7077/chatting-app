@@ -12,6 +12,28 @@ const ICE_SERVERS = {
   ],
 };
 
+// --- Session persistence helpers (survive a browser refresh) ---
+const SESSION_KEY = "chatSession";
+
+function saveSession(data) {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
+}
+
+function loadSession() {
+  if (typeof window === "undefined") return null;
+  try {
+    return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function clearSession() {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(SESSION_KEY);
+}
+
 function ChatContent() {
   const params = useSearchParams();
   const name = params.get("name");
@@ -33,13 +55,6 @@ function ChatContent() {
 
   const bottomRef = useRef(null);
 
-  const searchAgain = () => {
-    if (!socket) return;
-    setPartnerLeft(false);
-    setStatus("Waiting for partner...");
-    socket.emit("join", name);
-  };
-
   useEffect(() => {
     roomIdRef.current = roomId;
   }, [roomId]);
@@ -58,7 +73,19 @@ function ChatContent() {
 
     newSocket.on("connect", () => {
       console.log("Connected:", newSocket.id);
-      newSocket.emit("join", name);
+
+      // On (re)connect — including after a browser refresh — check if we
+      // were already in a matched room. If so, ask the server to put us
+      // back in it instead of starting a fresh match search.
+      const session = loadSession();
+      if (session && session.name === name && session.roomId) {
+        newSocket.emit("rejoin-room", {
+          roomId: session.roomId,
+          name,
+        });
+      } else {
+        newSocket.emit("join", name);
+      }
     });
 
     newSocket.on("connect_error", (err) => {
@@ -67,6 +94,7 @@ function ChatContent() {
     });
 
     newSocket.on("waiting", () => {
+      clearSession();
       setStatus("Waiting for partner...");
     });
 
@@ -74,6 +102,21 @@ function ChatContent() {
       setRoomId(data.roomId);
       setStatus("Connected!");
       setPartnerLeft(false);
+      saveSession({ name, roomId: data.roomId });
+    });
+
+    // Server confirms we're back in our old room after a refresh
+    newSocket.on("rejoined", (data) => {
+      setRoomId(data.roomId);
+      setStatus("Connected!");
+      setPartnerLeft(false);
+    });
+
+    // Old room was gone (partner left while we were reconnecting, etc.)
+    newSocket.on("rejoin-failed", () => {
+      clearSession();
+      setStatus("Waiting for partner...");
+      newSocket.emit("join", name);
     });
 
     newSocket.on("onlineCount", (count) => {
@@ -88,6 +131,7 @@ function ChatContent() {
       setMessages([]);
       setRoomId(null);
       setStatus("Partner disconnected");
+      clearSession();
     });
 
     newSocket.on("receiveMessage", (data) => {
@@ -245,6 +289,15 @@ function ChatContent() {
     setMessages([]);
     setPartnerLeft(false);
     setStatus("Waiting for partner...");
+    clearSession();
+    socket.emit("join", name);
+  };
+
+  const searchAgain = () => {
+    if (!socket) return;
+    setPartnerLeft(false);
+    setStatus("Waiting for partner...");
+    clearSession();
     socket.emit("join", name);
   };
 
